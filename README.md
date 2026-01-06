@@ -7,6 +7,7 @@ Um aplicativo macOS leve que transforma qualquer vídeo em um papel de parede an
 - **Papel de Parede Animado**: Reproduz vídeos em loop atrás dos ícones do desktop.
 - **Persistência**: Lembra automaticamente do último vídeo selecionado ao reiniciar.
 - **Multimonitor**: Suporte nativo para múltiplos monitores, sincronizando o vídeo em todas as telas.
+- **Mudo/Som**: Opção para silenciar o vídeo com persistência de estado.
 - **Auto-start**: Opção no menu para iniciar automaticamente ao fazer login no macOS.
 - **Barra de Menus**: Controle total via ícone 🎬 na barra de menus, sem ícone no Dock.
 

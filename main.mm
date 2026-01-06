@@ -25,6 +25,9 @@
 
   [self setupMenuBar];
 
+  // Sincroniza o estado do Login Item com a preferência salva
+  [self syncLoginItemWithPreference];
+
   // Tenta carregar o último vídeo salvo
   NSString *lastPath =
       [[NSUserDefaults standardUserDefaults] stringForKey:@"LastVideoPath"];
@@ -47,13 +50,25 @@
                   action:@selector(changeVideo:)
            keyEquivalent:@"n"];
 
-  // Item para Iniciar no Login
+  // Item para Mutar
+  NSMenuItem *muteItem =
+      [[NSMenuItem alloc] initWithTitle:@"Mudo"
+                                 action:@selector(toggleMute:)
+                          keyEquivalent:@"m"];
+  muteItem.state = [[NSUserDefaults standardUserDefaults] boolForKey:@"IsMuted"]
+                       ? NSControlStateValueOn
+                       : NSControlStateValueOff;
+  [menu addItem:muteItem];
+
+  // Item para Iniciar no Login (usa preferência salva como fonte da verdade)
   NSMenuItem *loginItem =
       [[NSMenuItem alloc] initWithTitle:@"Iniciar no Login"
                                  action:@selector(toggleLoginItem:)
                           keyEquivalent:@""];
-  loginItem.state = [self isLoginItemEnabled] ? NSControlStateValueOn
-                                              : NSControlStateValueOff;
+  BOOL shouldStartAtLogin =
+      [[NSUserDefaults standardUserDefaults] boolForKey:@"StartAtLogin"];
+  loginItem.state =
+      shouldStartAtLogin ? NSControlStateValueOn : NSControlStateValueOff;
   [menu addItem:loginItem];
 
   [menu addItem:[NSMenuItem separatorItem]];
@@ -81,6 +96,14 @@
   }
 }
 
+- (void)toggleMute:(NSMenuItem *)sender {
+  BOOL mute = (sender.state == NSControlStateValueOff);
+  sender.state = mute ? NSControlStateValueOn : NSControlStateValueOff;
+  self.player.muted = mute;
+  [[NSUserDefaults standardUserDefaults] setBool:mute forKey:@"IsMuted"];
+  [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 - (void)setupWindowsAndPlayer:(NSURL *)videoURL {
   // Limpa janelas e camadas antigas
   for (NSWindow *win in self.windows)
@@ -93,6 +116,10 @@
   self.player = [AVQueuePlayer queuePlayerWithItems:@[ playerItem ]];
   self.playerLooper = [AVPlayerLooper playerLooperWithPlayer:self.player
                                                 templateItem:playerItem];
+
+  // Aplica estado de mudo persistido
+  self.player.muted =
+      [[NSUserDefaults standardUserDefaults] boolForKey:@"IsMuted"];
 
   // Cria uma janela para cada monitor
   for (NSScreen *screen in [NSScreen screens]) {
@@ -120,25 +147,49 @@
   [self.player play];
 }
 
+- (void)syncLoginItemWithPreference {
+  if (@available(macOS 13.0, *)) {
+    BOOL shouldBeEnabled =
+        [[NSUserDefaults standardUserDefaults] boolForKey:@"StartAtLogin"];
+    SMAppService *service = [SMAppService mainAppService];
+
+    // Só tenta registrar se o status atual for diferente da preferência
+    BOOL isCurrentlyEnabled = (service.status == SMAppServiceStatusEnabled);
+    if (shouldBeEnabled != isCurrentlyEnabled) {
+      if (shouldBeEnabled) {
+        [service registerAndReturnError:nil];
+      } else {
+        [service unregisterAndReturnError:nil];
+      }
+    }
+  }
+}
+
 - (void)toggleLoginItem:(NSMenuItem *)sender {
   BOOL enable = (sender.state == NSControlStateValueOff);
+
+  // Salva a intenção do usuário imediatamente
+  [[NSUserDefaults standardUserDefaults] setBool:enable forKey:@"StartAtLogin"];
+  [[NSUserDefaults standardUserDefaults] synchronize];
+
+  // Atualiza a UI imediatamente para parecer responsivo
+  sender.state = enable ? NSControlStateValueOn : NSControlStateValueOff;
+
+  // Tenta sincronizar com o sistema
   if (@available(macOS 13.0, *)) {
     SMAppService *service = [SMAppService mainAppService];
     NSError *error = nil;
     if (enable) {
-      [service registerAndReturnError:&error];
+      if (![service registerAndReturnError:&error]) {
+        NSLog(@"Erro ao registrar login item: %@", error.localizedDescription);
+      }
     } else {
-      [service unregisterAndReturnError:&error];
+      if (![service unregisterAndReturnError:&error]) {
+        NSLog(@"Erro ao desregistrar login item: %@",
+              error.localizedDescription);
+      }
     }
   }
-  sender.state = enable ? NSControlStateValueOn : NSControlStateValueOff;
-}
-
-- (BOOL)isLoginItemEnabled {
-  if (@available(macOS 13.0, *)) {
-    return [SMAppService mainAppService].status == SMAppServiceStatusEnabled;
-  }
-  return NO;
 }
 
 - (void)terminateApp:(id)sender {
