@@ -13,17 +13,47 @@
 @property(strong) AVQueuePlayer *player;
 @property(strong) AVPlayerLooper *playerLooper;
 @property(strong) AVPlayerLayer *playerLayer;
+@property(strong) NSStatusItem *statusItem; // Item da Barra de Menus
 @end
 
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-  // Garante que o app tenha foco e possa exibir janelas de interface (como o
-  // seletor de arquivos)
-  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+  // NSApplicationActivationPolicyAccessory: Oculta o ícone do Dock e permite
+  // rodar como app de fundo
+  [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+
+  [self setupMenuBar];
+
+  // Pergunta o primeiro vídeo ao iniciar
+  [self changeVideo:nil];
+}
+
+- (void)setupMenuBar {
+  // Cria o item na barra de menus (Status Bar)
+  self.statusItem = [[NSStatusBar systemStatusBar]
+      statusItemWithLength:NSVariableStatusItemLength];
+
+  // Ícone simples (emoji ou símbolo de vídeo)
+  self.statusItem.button.title = @"🎬";
+
+  // Menu suspenso
+  NSMenu *menu = [[NSMenu alloc] init];
+  [menu addItemWithTitle:@"Trocar Vídeo"
+                  action:@selector(changeVideo:)
+           keyEquivalent:@"n"];
+  [menu addItem:[NSMenuItem separatorItem]];
+  [menu addItemWithTitle:@"Sair"
+                  action:@selector(terminateApp:)
+           keyEquivalent:@"q"];
+
+  self.statusItem.menu = menu;
+}
+
+- (void)changeVideo:(id)sender {
+  // Garante que o app possa mostrar o seletor (necessário para apps Accessory)
   [NSApp activateIgnoringOtherApps:YES];
 
-  // 1. Seleção do arquivo de vídeo usando NSOpenPanel
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   [panel setTitle:@"Selecione um vídeo para o fundo de tela"];
   [panel setCanChooseFiles:YES];
@@ -34,63 +64,63 @@
   if ([panel runModal] == NSModalResponseOK) {
     NSURL *videoURL = [[panel URLs] firstObject];
     [self setupWindowAndPlayer:videoURL];
-  } else {
-    NSLog(@"Nenhum vídeo selecionado. O aplicativo será encerrado.");
+  } else if (!self.window) {
+    // Se cancelou na primeira vez e não tem janela ativa, fecha o app
+    NSLog(@"Nenhum vídeo selecionado ao iniciar. Encerrando.");
     [NSApp terminate:self];
   }
 }
 
+- (void)terminateApp:(id)sender {
+  [NSApp terminate:self];
+}
+
 - (void)setupWindowAndPlayer:(NSURL *)videoURL {
-  // 2. Configuração da Janela
   NSRect screenRect = [[NSScreen mainScreen] frame];
 
-  // NSWindowStyleMaskBorderless: Janela sem bordas ou botões de controle
-  self.window =
-      [[NSWindow alloc] initWithContentRect:screenRect
-                                  styleMask:NSWindowStyleMaskBorderless
-                                    backing:NSBackingStoreBuffered
-                                      defer:NO];
+  // Se a janela ainda não existe, cria ela
+  if (!self.window) {
+    self.window =
+        [[NSWindow alloc] initWithContentRect:screenRect
+                                    styleMask:NSWindowStyleMaskBorderless
+                                      backing:NSBackingStoreBuffered
+                                        defer:NO];
 
-  [self.window setBackgroundColor:[NSColor blackColor]];
+    [self.window setBackgroundColor:[NSColor blackColor]];
+    [self.window setLevel:kCGDesktopWindowLevel];
+    [self.window
+        setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+                              NSWindowCollectionBehaviorStationary];
+    [self.window setIgnoresMouseEvents:YES];
+    [[self.window contentView] setWantsLayer:YES];
+  }
 
-  // kCGDesktopWindowLevel: Coloca a janela no nível do desktop (atrás de tudo)
-  [self.window setLevel:kCGDesktopWindowLevel];
+  // Para o vídeo anterior se houver
+  if (self.player) {
+    [self.player pause];
+  }
 
-  // NSWindowCollectionBehaviorCanJoinAllSpaces: Garante que apareça em todos os
-  // Spaces/Desktops
-  [self.window
-      setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-                            NSWindowCollectionBehaviorStationary];
-
-  // Ignorar eventos de mouse (cliques passam através da janela)
-  [self.window setIgnoresMouseEvents:YES];
-
-  // 3. Configuração do Player de Vídeo (AVFoundation)
+  // Configuração do Player de Vídeo (AVFoundation)
   AVAsset *asset = [AVAsset assetWithURL:videoURL];
   AVPlayerItem *playerItem = [AVPlayerItem playerItemWithAsset:asset];
 
-  // AVQueuePlayer + AVPlayerLooper para um loop perfeito e performático
   self.player = [AVQueuePlayer queuePlayerWithItems:@[ playerItem ]];
   self.playerLooper = [AVPlayerLooper playerLooperWithPlayer:self.player
                                                 templateItem:playerItem];
 
-  // AVPlayerLayer: A camada que renderiza o vídeo
+  // Se a layer já existe, remove ela antes de criar uma nova
+  if (self.playerLayer) {
+    [self.playerLayer removeFromSuperlayer];
+  }
+
   self.playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
   [self.playerLayer setFrame:screenRect];
-  [self.playerLayer
-      setVideoGravity:AVLayerVideoGravityResizeAspectFill]; // Preenche a tela
+  [self.playerLayer setVideoGravity:AVLayerVideoGravityResizeAspectFill];
 
-  // Adiciona a camada de vídeo à view da janela
-  [[self.window contentView] setWantsLayer:YES];
   [[[self.window contentView] layer] addSublayer:self.playerLayer];
 
-  // Mostra a janela e inicia a reprodução
   [self.window makeKeyAndOrderFront:nil];
   [self.player play];
-
-  // Após selecionar o vídeo, podemos voltar para o modo "Accessory" se
-  // quisermos que ele não apareça no Dock/Cmd+Tab, mas como o foco é o papel de
-  // parede, vamos manter simples.
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:
