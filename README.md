@@ -21,7 +21,7 @@ Um aplicativo macOS leve que transforma qualquer vídeo em um papel de parede an
 Para compilar o projeto e gerar o executável dentro do bundle `.app`, execute o seguinte comando no terminal:
 
 ```bash
-clang++ -O3 -framework Cocoa -framework AVFoundation -framework AVKit -framework ServiceManagement -o MyDesktopVideo.app/Contents/MacOS/MyDesktopVideo main.mm
+clang++ -O3 -framework Cocoa -framework AVFoundation -framework AVKit -framework ServiceManagement -o MyDesktopVideo.app/Contents/MacOS/MyDesktopVideo main.mm && codesign -s - MyDesktopVideo.app
 ```
 
 ## Como Rodar

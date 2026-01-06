@@ -153,13 +153,19 @@
         [[NSUserDefaults standardUserDefaults] boolForKey:@"StartAtLogin"];
     SMAppService *service = [SMAppService mainAppService];
 
-    // Só tenta registrar se o status atual for diferente da preferência
     BOOL isCurrentlyEnabled = (service.status == SMAppServiceStatusEnabled);
     if (shouldBeEnabled != isCurrentlyEnabled) {
+      NSError *error = nil;
       if (shouldBeEnabled) {
-        [service registerAndReturnError:nil];
+        if (![service registerAndReturnError:&error]) {
+          NSLog(@"[LoginItem] Falha ao registrar na sincronização: %@",
+                error.localizedDescription);
+        }
       } else {
-        [service unregisterAndReturnError:nil];
+        if (![service unregisterAndReturnError:&error]) {
+          NSLog(@"[LoginItem] Falha ao desregistrar na sincronização: %@",
+                error.localizedDescription);
+        }
       }
     }
   }
@@ -181,12 +187,16 @@
     NSError *error = nil;
     if (enable) {
       if (![service registerAndReturnError:&error]) {
-        NSLog(@"Erro ao registrar login item: %@", error.localizedDescription);
+        NSLog(@"[LoginItem] Erro ao registrar: %@", error.localizedDescription);
+      } else {
+        NSLog(@"[LoginItem] Registrado com sucesso.");
       }
     } else {
       if (![service unregisterAndReturnError:&error]) {
-        NSLog(@"Erro ao desregistrar login item: %@",
+        NSLog(@"[LoginItem] Erro ao desregistrar: %@",
               error.localizedDescription);
+      } else {
+        NSLog(@"[LoginItem] Desregistrado com sucesso.");
       }
     }
   }
