@@ -14,8 +14,9 @@ Um aplicativo macOS leve que transforma qualquer vídeo em um papel de parede an
 
 ## Demonstração
 
-![Exemplo de Uso](path/to/your/demo_video_or_gif.gif)
-> *vídeo de demonstração.*
+<video src="readme.mp4" controls loop muted autoplay></video>
+
+> *Vídeo de demonstração.*
 
 ## Requisitos
 
