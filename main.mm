@@ -3,19 +3,13 @@
 #import <Cocoa/Cocoa.h>
 #import <ServiceManagement/ServiceManagement.h>
 
-/**
- * DesktopVideoApp: Papel de parede animado com suporte a persistência,
- * múltiplos monitores e login automático.
- */
-
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @property(strong) NSMutableArray<NSWindow *> *windows;
 @property(strong) AVQueuePlayer *player;
 @property(strong) AVPlayerLooper *playerLooper;
 @property(strong) NSMutableArray<AVPlayerLayer *> *playerLayers;
 @property(strong) NSStatusItem *statusItem;
-@property(assign)
-    BOOL isVisible; // Rastreia visibilidade para pausa inteligente
+@property(assign) BOOL isVisible;
 @end
 
 @implementation AppDelegate
@@ -27,10 +21,8 @@
 
   [self setupMenuBar];
 
-  // Sincroniza o estado do Login Item com a preferência salva
   [self syncLoginItemWithPreference];
 
-  // Tenta carregar o último vídeo salvo
   NSString *lastPath =
       [[NSUserDefaults standardUserDefaults] stringForKey:@"LastVideoPath"];
   if (lastPath && [[NSFileManager defaultManager] fileExistsAtPath:lastPath]) {
@@ -44,7 +36,6 @@
   self.statusItem = [[NSStatusBar systemStatusBar]
       statusItemWithLength:NSVariableStatusItemLength];
 
-  // Ícone de sistema (emoji)
   self.statusItem.button.title = @"🎬";
 
   NSMenu *menu = [[NSMenu alloc] init];
@@ -53,7 +44,6 @@
                   action:@selector(changeVideo:)
            keyEquivalent:@"n"];
 
-  // Item para Mutar
   NSMenuItem *muteItem = [[NSMenuItem alloc]
       initWithTitle:NSLocalizedString(@"Mute", @"Menu item to mute video")
              action:@selector(toggleMute:)
@@ -63,7 +53,6 @@
                        : NSControlStateValueOff;
   [menu addItem:muteItem];
 
-  // Item para Iniciar no Login (usa preferência salva como fonte da verdade)
   NSMenuItem *loginItem = [[NSMenuItem alloc]
       initWithTitle:NSLocalizedString(@"Start at Login",
                                       @"Menu item to toggle start at login")
@@ -91,7 +80,6 @@
 
   if ([panel runModal] == NSModalResponseOK) {
     NSURL *videoURL = [[panel URLs] firstObject];
-    // Persiste a escolha
     [[NSUserDefaults standardUserDefaults] setObject:videoURL.path
                                               forKey:@"LastVideoPath"];
     [[NSUserDefaults standardUserDefaults] synchronize];
@@ -110,32 +98,25 @@
 }
 
 - (void)setupWindowsAndPlayer:(NSURL *)videoURL {
-  // Desativa animações implícitas para as mudanças a seguir
   [CATransaction begin];
   [CATransaction setDisableActions:YES];
 
-  // Configura o item de vídeo com buffer reduzido (Requisito 3)
   AVAsset *asset = [AVAsset assetWithURL:videoURL];
   AVPlayerItem *playerItem = [AVPlayerItem playerItemWithAsset:asset];
-  playerItem.preferredForwardBufferDuration = 1.0; // Buffer de 1 segundo
+  playerItem.preferredForwardBufferDuration = 1.0;
   playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = NO;
 
-  // Cria o player apenas se não existir (Requisito 1)
   if (!self.player) {
     self.player = [AVQueuePlayer queuePlayerWithItems:@[ playerItem ]];
-    self.player.automaticallyWaitsToMinimizeStalling =
-        NO; // Otimização de latência
+    self.player.automaticallyWaitsToMinimizeStalling = NO;
   } else {
     [self.player removeAllItems];
     [self.player insertItem:playerItem afterItem:nil];
   }
 
-  // Reinicia o looper para o novo item
   self.playerLooper = [AVPlayerLooper playerLooperWithPlayer:self.player
                                                 templateItem:playerItem];
 
-  // Reaproveita janelas se possível; se a contagem de monitores mudou, limpa
-  // tudo.
   if (self.windows.count != [NSScreen screens].count) {
     for (NSWindow *win in self.windows)
       [win close];
@@ -149,18 +130,16 @@
                                         backing:NSBackingStoreBuffered
                                           defer:NO];
       [window setBackgroundColor:[NSColor blackColor]];
-      [window setLevel:kCGDesktopWindowLevel]; // Wallpaper level
+      [window setLevel:kCGDesktopWindowLevel];
       [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
                                     NSWindowCollectionBehaviorStationary];
       [window setIgnoresMouseEvents:YES];
 
-      // Otimização: Desativa animações da janela
       [window setAnimationBehavior:NSWindowAnimationBehaviorNone];
 
       [[window contentView] setWantsLayer:YES];
       AVPlayerLayer *layer = [AVPlayerLayer playerLayerWithPlayer:self.player];
 
-      // Desativa animações implícitas na camada (Requisito 4)
       layer.actions = @{
         @"position" : [NSNull null],
         @"bounds" : [NSNull null],
@@ -176,7 +155,6 @@
       [self.windows addObject:window];
       [self.playerLayers addObject:layer];
 
-      // Observa visibilidade da janela (Requisito: Pausa apenas em tela cheia)
       [[NSNotificationCenter defaultCenter]
           addObserver:self
              selector:@selector(checkVisibility)
@@ -184,28 +162,23 @@
                object:window];
     }
 
-    // Observa troca de Spaces para garantir que não pausamos indevidamente (Log
-    // e controle)
     [[[NSWorkspace sharedWorkspace] notificationCenter]
         addObserver:self
            selector:@selector(handleSpaceChange)
                name:NSWorkspaceActiveSpaceDidChangeNotification
              object:nil];
 
-    // Observa ativação de apps para debug (Requisito 3)
     [[[NSWorkspace sharedWorkspace] notificationCenter]
         addObserver:self
            selector:@selector(handleAppActivation:)
                name:NSWorkspaceDidActivateApplicationNotification
              object:nil];
   } else {
-    // Apenas atualiza o player no layer existente
     for (AVPlayerLayer *layer in self.playerLayers) {
       layer.player = self.player;
     }
   }
 
-  // Aplica estado de mudo persistido
   self.player.muted =
       [[NSUserDefaults standardUserDefaults] boolForKey:@"IsMuted"];
 
@@ -217,25 +190,20 @@
   [CATransaction commit];
 }
 
-// Log quando troca de Space (Requisito 1: Não pausar aqui)
 - (void)handleSpaceChange {
   NSLog(@"[DesktopVideo DevLog] Espaço alterado (Space Change). Mantendo "
         @"reprodução.");
-  // Garante que continue dando play se estivermos trocando de espaço
   if (!self.isVisible) {
     [self.player play];
     self.isVisible = YES;
   }
 }
 
-// Log quando um app é ativado (ajuda a identificar transições de tela cheia)
 - (void)handleAppActivation:(NSNotification *)notification {
   NSRunningApplication *app = notification.userInfo[NSWorkspaceApplicationKey];
   NSLog(@"[DesktopVideo DevLog] App ativado: %@", app.localizedName);
 }
 
-// Otimização: Pausa o vídeo apenas quando o desktop está totalmente oculto
-// (Requisito 2 e 5)
 - (void)checkVisibility {
   BOOL anyVisible = NO;
   for (NSWindow *win in self.windows) {
@@ -250,7 +218,6 @@
     self.isVisible = YES;
     NSLog(@"[DesktopVideo DevLog] Vídeo retomado: Desktop visível.");
   } else if (!anyVisible && self.isVisible) {
-    // Verifica se não é apenas uma transição rápida
     dispatch_after(
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
         dispatch_get_main_queue(), ^{
@@ -298,14 +265,11 @@
 - (void)toggleLoginItem:(NSMenuItem *)sender {
   BOOL enable = (sender.state == NSControlStateValueOff);
 
-  // Salva a intenção do usuário imediatamente
   [[NSUserDefaults standardUserDefaults] setBool:enable forKey:@"StartAtLogin"];
   [[NSUserDefaults standardUserDefaults] synchronize];
 
-  // Atualiza a UI imediatamente para parecer responsivo
   sender.state = enable ? NSControlStateValueOn : NSControlStateValueOff;
 
-  // Tenta sincronizar com o sistema
   if (@available(macOS 13.0, *)) {
     SMAppService *service = [SMAppService mainAppService];
     NSError *error = nil;
