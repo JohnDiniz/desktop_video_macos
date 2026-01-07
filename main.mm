@@ -369,7 +369,7 @@ static const NSInteger kMaxRecentVideos = 10;
     NSLog(@"[DesktopVideo DevLog] Vídeo retomado: Desktop visível.");
   } else if (!anyVisible && self.isVisible) {
     dispatch_after(
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.7 * NSEC_PER_SEC)),
         dispatch_get_main_queue(), ^{
           BOOL stillHidden = YES;
           for (NSWindow *win in self.windows) {
