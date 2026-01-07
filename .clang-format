@@ -1,0 +1,28 @@
+---
+# Based on LLVM style
+BasedOnStyle: LLVM
+
+# 4-space indentation
+IndentWidth: 4
+
+# 100 column limit
+ColumnLimit: 100
+
+# Allman style braces (always on a new line)
+BreakBeforeBraces: Allman
+
+# Left-aligned pointers (e.g., int* p)
+PointerAlignment: Left
+
+# Automatic include sorting
+SortIncludes: true
+
+# Objective-C specific options
+ObjCBlockIndentWidth: 4
+ObjCSpaceAfterProperty: true
+ObjCSpaceBeforeProtocolList: true
+
+# Supports Modern C++ and Objective-C
+Language: Cpp
+Standard: Latest
+...

@@ -55,8 +55,29 @@ clang++ -O3 \
   -framework AVKit \
   -framework ServiceManagement \
   -framework QuartzCore \
+  -framework UniformTypeIdentifiers \
   -o MyDesktopVideo.app/Contents/MacOS/MyDesktopVideo \
   main.mm && codesign -s - MyDesktopVideo.app
+```
+
+#### Compilação com CMake (Recomendado)
+
+```bash
+# Configurar e compilar
+cmake -B build
+cmake --build build
+
+# Rodar (a partir da pasta build)
+open build/MyDesktopVideo.app
+```
+
+### 💎 Formatação de Código
+
+O projeto utiliza `clang-format` (estilo Allman) para manter a consistência.
+
+```bash
+# Formatar todo o projeto
+find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\|h\|mm\|m\)' -exec clang-format -i {} +
 ```
 
 ### ▶ Como Rodar
@@ -108,11 +129,31 @@ A lightweight macOS application that turns any video into an animated desktop wa
 clang++ -O3 \
   -framework Cocoa \
   -framework AVFoundation \
-  -framework AVKit \
   -framework ServiceManagement \
   -framework QuartzCore \
+  -framework UniformTypeIdentifiers \
   -o MyDesktopVideo.app/Contents/MacOS/MyDesktopVideo \
   main.mm && codesign -s - MyDesktopVideo.app
+```
+
+#### Build with CMake (Recommended)
+
+```bash
+# Configure and build
+cmake -B build
+cmake --build build
+
+# Run (from build folder)
+open build/MyDesktopVideo.app
+```
+
+### 💎 Code Formatting
+
+The project uses `clang-format` (Allman style) to maintain consistency.
+
+```bash
+# Format the entire project
+find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\|h\|mm\|m\)' -exec clang-format -i {} +
 ```
 
 ### ▶ How to Run
