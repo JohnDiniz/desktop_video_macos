@@ -4,22 +4,14 @@ project(MyDesktopVideo LANGUAGES OBJCXX)
 # Create a macOS application bundle
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0")
 
-<<<<<<< HEAD
-=======
-# Set output directory to project root (source directory)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
-
->>>>>>> 0a4aa0d (feat: Add CMake build system, update README with build and formatting instructions, and refine Info.plist for the macOS application.)
 # Set the source files
 set(SOURCES main.mm)
 
 # Create the executable bundle
 add_executable(MyDesktopVideo MACOSX_BUNDLE ${SOURCES})
 
-# Configure Automatic Reference Counting (ARC)
-target_compile_options(MyDesktopVideo PRIVATE -fobjc-arc)
+# Configure Automatic Reference Counting (ARC) and Optimization
+target_compile_options(MyDesktopVideo PRIVATE -fobjc-arc -O3)
 
 # Use C++20 for code modern code support
 set_target_properties(MyDesktopVideo PROPERTIES 

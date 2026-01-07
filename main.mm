@@ -241,6 +241,33 @@
   }
 }
 
+- (void)addLegacyLoginItem {
+  dispatch_async(
+      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *appPath = [[NSBundle mainBundle] bundlePath];
+        NSString *bundleName =
+            [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"]
+                ?: @"MyDesktopVideo";
+        NSString *source = [NSString
+            stringWithFormat:@"tell application \"System Events\"\n"
+                              "  if not (exists (login item \"%@\")) then\n"
+                              "    make login item at end with properties "
+                              "{path:\"%@\", hidden:false}\n"
+                              "  end if\n"
+                              "end tell",
+                             bundleName, appPath];
+        NSAppleScript *appleScript =
+            [[NSAppleScript alloc] initWithSource:source];
+        NSDictionary *error = nil;
+        [appleScript executeAndReturnError:&error];
+        if (error) {
+          NSLog(@"[LoginItem] Erro ao adicionar item legado: %@", error);
+        } else {
+          NSLog(@"[LoginItem] Item legado adicionado com sucesso.");
+        }
+      });
+}
+
 - (void)removeLegacyLoginItem {
   dispatch_async(
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -253,13 +280,7 @@
                              bundleName];
         NSAppleScript *appleScript =
             [[NSAppleScript alloc] initWithSource:source];
-        NSDictionary *error = nil;
-        [appleScript executeAndReturnError:&error];
-        if (error) {
-          NSLog(@"[LoginItem] Erro ao remover item legado: %@", error);
-        } else {
-          NSLog(@"[LoginItem] Item legado removido ou não encontrado.");
-        }
+        [appleScript executeAndReturnError:nil];
       });
 }
 
@@ -273,26 +294,22 @@
       if (service.status != SMAppServiceStatusEnabled) {
         NSError *error = nil;
         if (![service registerAndReturnError:&error]) {
-          NSLog(@"[LoginItem] Falha ao registrar na sincronização: %@",
+          NSLog(@"[LoginItem] SMAppService falhou: %@",
                 error.localizedDescription);
-        } else {
-          NSLog(@"[LoginItem] Registrado com sucesso via sincronização.");
         }
       }
+      [self addLegacyLoginItem];
     } else {
       if (service.status != SMAppServiceStatusNotRegistered) {
         NSError *error = nil;
-        if (![service unregisterAndReturnError:&error]) {
-          NSLog(@"[LoginItem] Falha ao desregistrar na sincronização: %@",
-                error.localizedDescription);
-        } else {
-          NSLog(@"[LoginItem] Desregistrado com sucesso via sincronização.");
-        }
+        [service unregisterAndReturnError:&error];
       }
       [self removeLegacyLoginItem];
     }
   } else {
-    if (!shouldBeEnabled) {
+    if (shouldBeEnabled) {
+      [self addLegacyLoginItem];
+    } else {
       [self removeLegacyLoginItem];
     }
   }
@@ -308,24 +325,22 @@
 
   if (@available(macOS 13.0, *)) {
     SMAppService *service = [SMAppService mainAppService];
-    NSError *error = nil;
     if (enable) {
+      NSError *error = nil;
       if (![service registerAndReturnError:&error]) {
-        NSLog(@"[LoginItem] Erro ao registrar: %@", error.localizedDescription);
-      } else {
-        NSLog(@"[LoginItem] Registrado com sucesso.");
-      }
-    } else {
-      if (![service unregisterAndReturnError:&error]) {
-        NSLog(@"[LoginItem] Erro ao desregistrar: %@",
+        NSLog(@"[LoginItem] SMAppService falhou no toggle: %@",
               error.localizedDescription);
-      } else {
-        NSLog(@"[LoginItem] Desregistrado com sucesso.");
       }
+      [self addLegacyLoginItem];
+    } else {
+      NSError *error = nil;
+      [service unregisterAndReturnError:&error];
       [self removeLegacyLoginItem];
     }
   } else {
-    if (!enable) {
+    if (enable) {
+      [self addLegacyLoginItem];
+    } else {
       [self removeLegacyLoginItem];
     }
   }
