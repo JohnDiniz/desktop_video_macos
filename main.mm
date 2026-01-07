@@ -238,26 +238,59 @@
   }
 }
 
-- (void)syncLoginItemWithPreference {
-  if (@available(macOS 13.0, *)) {
-    BOOL shouldBeEnabled =
-        [[NSUserDefaults standardUserDefaults] boolForKey:@"StartAtLogin"];
-    SMAppService *service = [SMAppService mainAppService];
+- (void)removeLegacyLoginItem {
+  dispatch_async(
+      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *bundleName =
+            [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"]
+                ?: @"MyDesktopVideo";
+        NSString *source = [NSString
+            stringWithFormat:@"tell application \"System Events\" to delete "
+                             @"(every login item whose name is \"%@\")",
+                             bundleName];
+        NSAppleScript *appleScript =
+            [[NSAppleScript alloc] initWithSource:source];
+        NSDictionary *error = nil;
+        [appleScript executeAndReturnError:&error];
+        if (error) {
+          NSLog(@"[LoginItem] Erro ao remover item legado: %@", error);
+        } else {
+          NSLog(@"[LoginItem] Item legado removido ou não encontrado.");
+        }
+      });
+}
 
-    BOOL isCurrentlyEnabled = (service.status == SMAppServiceStatusEnabled);
-    if (shouldBeEnabled != isCurrentlyEnabled) {
-      NSError *error = nil;
-      if (shouldBeEnabled) {
+- (void)syncLoginItemWithPreference {
+  BOOL shouldBeEnabled =
+      [[NSUserDefaults standardUserDefaults] boolForKey:@"StartAtLogin"];
+
+  if (@available(macOS 13.0, *)) {
+    SMAppService *service = [SMAppService mainAppService];
+    if (shouldBeEnabled) {
+      if (service.status != SMAppServiceStatusEnabled) {
+        NSError *error = nil;
         if (![service registerAndReturnError:&error]) {
           NSLog(@"[LoginItem] Falha ao registrar na sincronização: %@",
                 error.localizedDescription);
+        } else {
+          NSLog(@"[LoginItem] Registrado com sucesso via sincronização.");
         }
-      } else {
+      }
+    } else {
+      if (service.status != SMAppServiceStatusNotRegistered) {
+        NSError *error = nil;
         if (![service unregisterAndReturnError:&error]) {
           NSLog(@"[LoginItem] Falha ao desregistrar na sincronização: %@",
                 error.localizedDescription);
+        } else {
+          NSLog(@"[LoginItem] Desregistrado com sucesso via sincronização.");
         }
       }
+      [self removeLegacyLoginItem];
+    }
+  } else {
+    if (!shouldBeEnabled) {
+      [self removeLegacyLoginItem];
     }
   }
 }
@@ -286,6 +319,11 @@
       } else {
         NSLog(@"[LoginItem] Desregistrado com sucesso.");
       }
+      [self removeLegacyLoginItem];
+    }
+  } else {
+    if (!enable) {
+      [self removeLegacyLoginItem];
     }
   }
 }
