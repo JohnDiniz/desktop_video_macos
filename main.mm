@@ -2,6 +2,7 @@
 #import <AVKit/AVKit.h>
 #import <Cocoa/Cocoa.h>
 #import <ServiceManagement/ServiceManagement.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @property(strong) NSMutableArray<NSWindow *> *windows;
@@ -74,9 +75,11 @@
 - (void)changeVideo:(id)sender {
   [NSApp activateIgnoringOtherApps:YES];
   NSOpenPanel *panel = [NSOpenPanel openPanel];
-  [panel setTitle:NSLocalizedString(@"Select a video",
-                                    @"Title for the open panel")];
-  [panel setAllowedFileTypes:@[ @"mp4", @"mov", @"m4v" ]];
+  panel.title =
+      NSLocalizedString(@"Select a video", @"Title for the open panel");
+
+  // Accepts any video type (mp4, mov, m4v, avi, etc.)
+  panel.allowedContentTypes = @[ UTTypeMovie ];
 
   if ([panel runModal] == NSModalResponseOK) {
     NSURL *videoURL = [[panel URLs] firstObject];
